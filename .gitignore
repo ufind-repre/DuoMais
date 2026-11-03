@@ -1,0 +1,7 @@
+reference-assets/
+old-site.html
+site/source-assets/
+site/qa/
+*.zip
+node_modules/
+.DS_Store
