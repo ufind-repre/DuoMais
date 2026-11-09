@@ -82,23 +82,91 @@ productNext?.addEventListener('click', () => scrollProducts(1));
 
 const heroSlides = [...document.querySelectorAll('.hero-slide[data-slide]')];
 const heroPanels = [...document.querySelectorAll('.hero-panel[data-hero-panel]')];
+const heroRoot = document.querySelector('.hero');
+const heroAutoplayButton = document.getElementById('hero-autoplay');
+const heroMotionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+const heroIntervalMs = 6500;
 let activeHero = 0;
+let heroTimer = null;
+let heroUserPaused = false;
+let heroMotionOptIn = false;
+let heroHovered = false;
+let heroInView = true;
 [solutions.voce[0],solutions.voce[1]].forEach((product,index) => {
   const slide = heroSlides.find(item => Number(item.dataset.slide) === index + 1);
   if(slide) slide.innerHTML = `<p class="eyebrow">${categoryNames.voce}</p><h2>${product.title}</h2><p class="hero-description">${product.detail}</p><ul class="hero-features">${product.features.map(feature => `<li>${icon('check-circle')}<span>${feature}</span></li>`).join('')}</ul><div class="hero-actions"><button class="button button-yellow" data-product="${product.id}" data-product-category="voce">Conhecer solução ${icon('arrow')}</button></div>`;
 });
-function showHero(index) {
+function showHero(index, announce = false) {
   if(!heroSlides.length) return;
-  activeHero = (index + heroSlides.length) % heroSlides.length;
-  heroSlides.forEach(slide => {slide.hidden = Number(slide.dataset.slide) !== activeHero;});
-  heroPanels.forEach(panel => {const active = Number(panel.dataset.heroPanel) === activeHero;panel.classList.toggle('is-active',active);panel.setAttribute('aria-pressed',String(active));});
+  const live = announce ? 'polite' : 'off';
+  document.querySelector('.hero-slides')?.setAttribute('aria-live',live);
   const status = document.getElementById('hero-status');
+  status?.setAttribute('aria-live',live);
+  activeHero = (index + heroSlides.length) % heroSlides.length;
+  heroSlides.forEach(slide => {
+    const active = Number(slide.dataset.slide) === activeHero;
+    slide.hidden = false;
+    slide.classList.toggle('is-active',active);
+    slide.setAttribute('aria-hidden',String(!active));
+    slide.toggleAttribute('inert',!active);
+  });
+  heroPanels.forEach(panel => {const active = Number(panel.dataset.heroPanel) === activeHero;panel.classList.toggle('is-active',active);panel.setAttribute('aria-pressed',String(active));});
   if(status) status.textContent = `${activeHero + 1} / ${heroSlides.length}`;
 }
-heroPanels.forEach(panel => panel.addEventListener('click', () => showHero(Number(panel.dataset.heroPanel))));
-document.getElementById('hero-prev')?.addEventListener('click', () => showHero(activeHero - 1));
-document.getElementById('hero-next')?.addEventListener('click', () => showHero(activeHero + 1));
+function heroPlaybackEnabled() {
+  return !heroUserPaused && (!heroMotionPreference.matches || heroMotionOptIn);
+}
+function syncHeroAutoplay() {
+  clearTimeout(heroTimer);
+  heroTimer = null;
+  const focusWithin = heroRoot?.contains(document.activeElement) && document.activeElement !== heroAutoplayButton;
+  const playing = heroSlides.length > 1 && heroPlaybackEnabled() && heroInView && !heroHovered && !focusWithin && !document.hidden && !document.querySelector('dialog[open]');
+  if(heroRoot) heroRoot.dataset.autoplay = playing ? 'playing' : 'paused';
+  if(heroAutoplayButton) {
+    const enabled = heroPlaybackEnabled();
+    const label = enabled ? 'Pausar carrossel' : 'Reproduzir carrossel';
+    heroAutoplayButton.setAttribute('aria-label',label);
+    heroAutoplayButton.title = label;
+    heroAutoplayButton.setAttribute('aria-pressed',String(!enabled));
+    heroAutoplayButton.querySelector('use')?.setAttribute('href',enabled ? '#i-pause' : '#i-play');
+  }
+  if(!playing) return;
+  document.querySelector('.hero-slides')?.setAttribute('aria-live','off');
+  document.getElementById('hero-status')?.setAttribute('aria-live','off');
+  heroTimer = setTimeout(() => {
+    showHero(activeHero + 1);
+    syncHeroAutoplay();
+  },heroIntervalMs);
+}
+function selectHero(index) {
+  showHero(index,true);
+  syncHeroAutoplay();
+}
+heroPanels.forEach(panel => panel.addEventListener('click', () => selectHero(Number(panel.dataset.heroPanel))));
+document.getElementById('hero-prev')?.addEventListener('click', () => selectHero(activeHero - 1));
+document.getElementById('hero-next')?.addEventListener('click', () => selectHero(activeHero + 1));
+heroAutoplayButton?.addEventListener('click', () => {
+  if(heroPlaybackEnabled()) heroUserPaused = true;
+  else {heroUserPaused = false;heroMotionOptIn = true;}
+  syncHeroAutoplay();
+});
+heroRoot?.addEventListener('pointerover', event => {
+  const hovered = !event.target.closest('#hero-autoplay');
+  if(heroHovered !== hovered) {heroHovered = hovered;syncHeroAutoplay();}
+});
+heroRoot?.addEventListener('pointerleave', () => {heroHovered = false;syncHeroAutoplay();});
+heroRoot?.addEventListener('focusin',syncHeroAutoplay);
+heroRoot?.addEventListener('focusout', () => queueMicrotask(syncHeroAutoplay));
+document.addEventListener('visibilitychange',syncHeroAutoplay);
+heroMotionPreference.addEventListener('change', () => {heroMotionOptIn = false;syncHeroAutoplay();});
+if(heroRoot && 'IntersectionObserver' in window) {
+  new IntersectionObserver(([entry]) => {
+    heroInView = entry.isIntersecting && entry.intersectionRatio >= 0.15;
+    syncHeroAutoplay();
+  },{threshold:0.15}).observe(heroRoot);
+}
 showHero(0);
+syncHeroAutoplay();
 
 const solutionsMenuToggle = document.getElementById('solutions-menu-toggle');
 const solutionsMenu = document.getElementById('solutions-menu');
@@ -129,6 +197,7 @@ function openModal(dialog, trigger) {
   lastModalTrigger = trigger || document.activeElement;
   document.body.classList.add('modal-open');
   dialog.showModal();
+  syncHeroAutoplay();
 }
 function openQuote(productId, trigger) {
   document.getElementById('quote-product').value = optionNames[productId] || '';
@@ -147,6 +216,7 @@ document.querySelectorAll('dialog').forEach(dialog => {
       document.body.classList.remove('modal-open');
       if(lastModalTrigger?.isConnected) lastModalTrigger.focus({preventScroll:true});
     }
+    syncHeroAutoplay();
   });
 });
 document.addEventListener('click', event => {
