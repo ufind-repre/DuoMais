@@ -24,14 +24,38 @@ const optionNames = {auto:'Seguro auto',residencial:'Seguro residencial',vida:'S
 const icon = (name, extra = '') => `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const grid = document.getElementById('product-grid');
 const tabs = [...document.querySelectorAll('[data-category]')];
+const productControls = document.getElementById('product-controls');
+const productPrev = document.getElementById('product-prev');
+const productNext = document.getElementById('product-next');
+const productPhotos = {
+  auto:{src:'assets/produto-auto.jpg',width:1080,height:1080,crop:'30 100 650 410'},
+  residencial:{src:'assets/produto-residencial.jpg',width:1600,height:900,crop:'0 345 1600 555'},
+  vida:{src:'assets/familia-duomais.jpg',width:1536,height:1024,crop:'0 0 1536 1024'},
+  saude:{src:'assets/produto-saude.jpg',width:1080,height:1080,crop:'120 480 540 410'},
+  portateis:{src:'assets/produto-portateis.jpg',width:1080,height:1080,crop:'470 460 550 410'},
+  empresarial:{src:'assets/produto-empresa.jpg',width:1200,height:1600,crop:'220 600 900 550'}
+};
+const photoAliases = {frotas:'auto',grupo:'vida',condominio:'residencial',consorcio:'residencial',previdencia:'vida'};
 let selectedProduct = null;
 let lastModalTrigger = null;
 
+function productPhoto(product) {
+  const photo = productPhotos[photoAliases[product.id] || product.id];
+  return `<svg class="product-photo-svg" viewBox="${photo.crop}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><image href="${photo.src}" width="${photo.width}" height="${photo.height}"/></svg>`;
+}
+function updateProductControls() {
+  const limit = Math.max(0, grid.scrollWidth - grid.clientWidth);
+  if(productControls) productControls.hidden = limit <= 2;
+  if(productPrev) productPrev.disabled = grid.scrollLeft <= 2;
+  if(productNext) productNext.disabled = grid.scrollLeft >= limit - 2;
+}
 function renderProducts(category) {
   grid.setAttribute('aria-labelledby', `tab-${category}`);
   grid.dataset.count = solutions[category].length;
-  grid.innerHTML = solutions[category].map((product, index) => `<article class="product-card"><div class="product-card-top"><span class="product-icon">${icon(product.icon)}</span><span class="product-number">0${index + 1} /</span></div><h3>${product.title}</h3><p>${product.description}</p><button data-product="${product.id}" data-product-category="${category}" aria-label="Saiba mais sobre ${product.title}">Conhecer solução <span class="card-arrow">${icon('arrow-up')}</span></button></article>`).join('');
+  grid.innerHTML = solutions[category].map(product => `<article class="product-card"><button class="product-photo" data-product="${product.id}" data-product-category="${category}" aria-label="Conhecer ${product.title}">${productPhoto(product)}</button><h3>${product.title}</h3><p>${product.description}</p><button data-product="${product.id}" data-product-category="${category}" aria-label="Saiba mais sobre ${product.title}">Conhecer solução <span class="card-arrow">${icon('arrow-up')}</span></button></article>`).join('');
   tabs.forEach(tab => { const active = tab.dataset.category === category; tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; });
+  grid.scrollLeft = 0;
+  requestAnimationFrame(updateProductControls);
 }
 tabs.forEach((tab,index) => {
   tab.addEventListener('click', () => renderProducts(tab.dataset.category));
@@ -45,6 +69,58 @@ tabs.forEach((tab,index) => {
   });
 });
 renderProducts('voce');
+grid.addEventListener('scroll', updateProductControls, {passive:true});
+new ResizeObserver(updateProductControls).observe(grid);
+document.fonts.ready.then(updateProductControls);
+function scrollProducts(direction) {
+  const card = grid.firstElementChild;
+  const distance = card ? card.getBoundingClientRect().width + (parseFloat(getComputedStyle(grid).columnGap) || 0) : grid.clientWidth;
+  grid.scrollBy({left:direction * distance,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
+productPrev?.addEventListener('click', () => scrollProducts(-1));
+productNext?.addEventListener('click', () => scrollProducts(1));
+
+const heroSlides = [...document.querySelectorAll('.hero-slide[data-slide]')];
+const heroPanels = [...document.querySelectorAll('.hero-panel[data-hero-panel]')];
+let activeHero = 0;
+[solutions.voce[0],solutions.voce[1]].forEach((product,index) => {
+  const slide = heroSlides.find(item => Number(item.dataset.slide) === index + 1);
+  if(slide) slide.innerHTML = `<p class="eyebrow">${categoryNames.voce}</p><h2>${product.title}</h2><p class="hero-description">${product.detail}</p><ul class="hero-features">${product.features.map(feature => `<li>${icon('check-circle')}<span>${feature}</span></li>`).join('')}</ul><div class="hero-actions"><button class="button button-yellow" data-product="${product.id}" data-product-category="voce">Conhecer solução ${icon('arrow')}</button></div>`;
+});
+function showHero(index) {
+  if(!heroSlides.length) return;
+  activeHero = (index + heroSlides.length) % heroSlides.length;
+  heroSlides.forEach(slide => {slide.hidden = Number(slide.dataset.slide) !== activeHero;});
+  heroPanels.forEach(panel => {const active = Number(panel.dataset.heroPanel) === activeHero;panel.classList.toggle('is-active',active);panel.setAttribute('aria-pressed',String(active));});
+  const status = document.getElementById('hero-status');
+  if(status) status.textContent = `${activeHero + 1} / ${heroSlides.length}`;
+}
+heroPanels.forEach(panel => panel.addEventListener('click', () => showHero(Number(panel.dataset.heroPanel))));
+document.getElementById('hero-prev')?.addEventListener('click', () => showHero(activeHero - 1));
+document.getElementById('hero-next')?.addEventListener('click', () => showHero(activeHero + 1));
+showHero(0);
+
+const solutionsMenuToggle = document.getElementById('solutions-menu-toggle');
+const solutionsMenu = document.getElementById('solutions-menu');
+const navDropdown = document.querySelector('.nav-dropdown');
+const navCategories = [...document.querySelectorAll('[data-nav-category]')];
+function setSolutionsMenu(open) {
+  if(!solutionsMenu || !solutionsMenuToggle) return;
+  solutionsMenu.hidden = !open;
+  solutionsMenuToggle.setAttribute('aria-expanded',String(open));
+  navDropdown?.classList.toggle('is-open',open);
+}
+function renderMenuProducts(category) {
+  const menuProducts = document.getElementById('menu-products');
+  if(menuProducts) menuProducts.innerHTML = solutions[category].map(product => `<button class="menu-product" data-product="${product.id}" data-product-category="${category}">${product.title} ${icon('arrow-up')}</button>`).join('');
+  navCategories.forEach(button => button.setAttribute('aria-pressed',String(button.dataset.navCategory === category)));
+}
+renderMenuProducts('voce');
+navCategories.forEach(button => button.addEventListener('click', () => renderMenuProducts(button.dataset.navCategory)));
+solutionsMenuToggle?.addEventListener('click', event => {event.preventDefault();setSolutionsMenu(window.matchMedia('(min-width:981px)').matches || solutionsMenuToggle.getAttribute('aria-expanded') !== 'true');});
+navDropdown?.addEventListener('pointerenter', () => {if(window.matchMedia('(min-width:981px)').matches) setSolutionsMenu(true);});
+navDropdown?.addEventListener('pointerleave', () => {if(!navDropdown.contains(document.activeElement)) setSolutionsMenu(false);});
+navDropdown?.addEventListener('focusout', () => queueMicrotask(() => {if(!navDropdown.contains(document.activeElement) && !navDropdown.matches(':hover')) setSolutionsMenu(false);}));
 
 const quoteDialog = document.getElementById('quote-dialog');
 const productDialog = document.getElementById('product-dialog');
@@ -73,10 +149,13 @@ document.querySelectorAll('dialog').forEach(dialog => {
     }
   });
 });
-grid.addEventListener('click', event => {
+document.addEventListener('click', event => {
   const button = event.target.closest('[data-product]');
   if(!button) return;
-  const product = solutions[button.dataset.productCategory].find(item => item.id === button.dataset.product);
+  const product = solutions[button.dataset.productCategory]?.find(item => item.id === button.dataset.product);
+  if(!product) return;
+  const trigger = button.closest('.nav-dropdown') ? solutionsMenuToggle : button;
+  setSolutionsMenu(false);
   selectedProduct = product;
   document.querySelector('.product-modal-icon').innerHTML = icon(product.icon);
   document.getElementById('product-category').textContent = categoryNames[button.dataset.productCategory];
@@ -84,7 +163,7 @@ grid.addEventListener('click', event => {
   document.getElementById('product-description').textContent = product.detail;
   document.getElementById('product-features').innerHTML = product.features.map(feature => `<li>${icon('check-circle')}<span>${feature}</span></li>`).join('');
   document.getElementById('product-note').textContent = product.note || 'A disponibilidade de produtos, coberturas e assistências depende do perfil, da análise de aceitação e das condições de cada seguradora. Nossa equipe explica cada opção antes da contratação.';
-  openModal(productDialog, button);
+  openModal(productDialog, trigger);
 });
 document.getElementById('product-quote').addEventListener('click', () => {
   const trigger = lastModalTrigger;
@@ -113,10 +192,18 @@ document.getElementById('quote-name').addEventListener('input', event => event.t
 
 const menuToggle = document.querySelector('.menu-toggle');
 const navigation = document.getElementById('navigation');
-function closeMenu() { navigation.classList.remove('is-open'); menuToggle.setAttribute('aria-expanded','false'); menuToggle.setAttribute('aria-label','Abrir menu'); }
-menuToggle.addEventListener('click', () => { const open = menuToggle.getAttribute('aria-expanded') !== 'true'; navigation.classList.toggle('is-open',open); menuToggle.setAttribute('aria-expanded',String(open)); menuToggle.setAttribute('aria-label',open ? 'Fechar menu' : 'Abrir menu'); });
-navigation.querySelectorAll('a').forEach(link => link.addEventListener('click',closeMenu));
-document.addEventListener('keydown', event => {if(event.key === 'Escape' && menuToggle.getAttribute('aria-expanded') === 'true') {closeMenu();menuToggle.focus();}});
-document.addEventListener('click', event => {if(!event.target.closest('.nav-inner')) closeMenu();});
-window.matchMedia('(min-width:761px)').addEventListener('change',event => {if(event.matches) closeMenu();});
+function closeMenu() { navigation.classList.remove('is-open'); menuToggle.setAttribute('aria-expanded','false'); menuToggle.setAttribute('aria-label','Abrir menu'); setSolutionsMenu(false); }
+menuToggle.addEventListener('click', () => { const open = menuToggle.getAttribute('aria-expanded') !== 'true'; if(!open) {closeMenu();return;} navigation.classList.add('is-open'); menuToggle.setAttribute('aria-expanded','true'); menuToggle.setAttribute('aria-label','Fechar menu'); });
+navigation.querySelectorAll('a').forEach(link => {if(link !== solutionsMenuToggle) link.addEventListener('click',closeMenu);});
+document.addEventListener('keydown', event => {
+  if(event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+  if(solutionsMenuToggle?.getAttribute('aria-expanded') === 'true') {setSolutionsMenu(false);solutionsMenuToggle.focus();}
+  else if(menuToggle.getAttribute('aria-expanded') === 'true') {closeMenu();menuToggle.focus();}
+});
+document.addEventListener('click', event => {
+  if(event.target.closest('dialog')) return;
+  if(!event.target.closest('.nav-dropdown')) setSolutionsMenu(false);
+  if(!event.target.closest('.nav-inner')) closeMenu();
+});
+window.matchMedia('(min-width:981px)').addEventListener('change',closeMenu);
 document.getElementById('year').textContent = new Date().getFullYear();
