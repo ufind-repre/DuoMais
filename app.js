@@ -6,7 +6,6 @@ const solutions = {
     { id:'residencial', title:'Seguro residencial', icon:'home', description:'Cuidado com o seu lar e com tudo o que faz dele o seu lugar.', detail:'Do apartamento à casa, vamos conversar sobre o seu imóvel e avaliar opções de proteção para o patrimônio e a sua rotina.', features:['Proteção para o imóvel e seus bens','Coberturas adicionais para diferentes imprevistos','Opções de assistência para a casa'] },
     { id:'vida', title:'Seguro de vida', icon:'heart', description:'Uma escolha de hoje que cuida de quem caminha com você.', detail:'Seus planos e as pessoas que você ama merecem atenção. Orientamos a escolha de um seguro de vida de acordo com suas prioridades.', features:['Necessidades da família e dos beneficiários','Capitais e coberturas adequados ao seu perfil','Possíveis coberturas para situações em vida'] },
     { id:'saude', title:'Saúde e odontológico', icon:'health', description:'Mais cuidado para você, sua família e o seu sorriso.', detail:'Entenda as opções de saúde e assistência odontológica disponíveis para seu perfil, com orientação para comparar as características de cada produto.', features:['Modalidades de contratação disponíveis','Rede de atendimento e abrangência','Condições, carências e regras de utilização'] },
-    { id:'pet', title:'Seguro pet', icon:'paw', description:'Para cuidar de quem faz parte da família, de quatro patas.', detail:'Vamos conhecer seu pet e avaliar as opções de cuidado e assistência disponíveis para as necessidades dele.', features:['Produtos disponíveis para o perfil do pet','Rede de atendimento e serviços previstos','Condições, limites e carências aplicáveis'] },
     { id:'portateis', title:'Equipamentos portáteis', icon:'device', description:'Seu trabalho, suas conexões e sua rotina mais protegidos.', detail:'Celular, notebook e outros equipamentos acompanham você. Avaliamos quais produtos de proteção estão disponíveis para o seu dispositivo.', features:['Elegibilidade e valor do equipamento','Opções para roubo e danos previstos','Franquias, limites e condições do produto'] }
   ],
   empresa: [
@@ -21,7 +20,7 @@ const solutions = {
   ]
 };
 const categoryNames = {voce:'Para você',empresa:'Para sua empresa',planos:'Para seus planos'};
-const optionNames = {auto:'Seguro auto',residencial:'Seguro residencial',vida:'Seguro de vida',saude:'Saúde e odontológico',pet:'Seguro pet',portateis:'Equipamentos portáteis',empresarial:'Seguro empresarial',frotas:'Frotas e veículos pesados',grupo:'Vida em grupo',condominio:'Seguro condomínio',consorcio:'Consórcio',previdencia:'Previdência privada'};
+const optionNames = {auto:'Seguro auto',residencial:'Seguro residencial',vida:'Seguro de vida',saude:'Saúde e odontológico',portateis:'Equipamentos portáteis',empresarial:'Seguro empresarial',frotas:'Frotas e veículos pesados',grupo:'Vida em grupo',condominio:'Seguro condomínio',consorcio:'Consórcio',previdencia:'Previdência privada'};
 const icon = (name, extra = '') => `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const grid = document.getElementById('product-grid');
 const tabs = [...document.querySelectorAll('[data-category]')];
